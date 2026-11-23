@@ -1,0 +1,44 @@
+name: Aggiorna Post Release Telegram
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch: # Permette di lanciarlo anche manualmente per test
+
+jobs:
+  update-telegram:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Recupera dati ultima release
+        id: latest_release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RELEASE_JSON=$(gh api repos/${{ github.repository }}/releases/latest)
+          TAG=$(echo "$RELEASE_JSON" | jq -r '.tag_name')
+          NAME=$(echo "$RELEASE_JSON" | jq -r '.name')
+          URL=$(echo "$RELEASE_JSON" | jq -r '.html_url')
+          DATE=$(echo "$RELEASE_JSON" | jq -r '.published_at' | cut -d'T' -f1)
+          
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "name=$NAME" >> $GITHUB_OUTPUT
+          echo "url=$URL" >> $GITHUB_OUTPUT
+          echo "date=$DATE" >> $GITHUB_OUTPUT
+
+      - name: Aggiorna messaggio su Telegram
+        env:
+          BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          MESSAGE_ID: ${{ secrets.TELEGRAM_MESSAGE_ID }}
+        run: |
+          TEXT="📦 <b>Ultima Release Disponibile</b>
+
+          🔖 <b>Versione:</b> ${{ steps.latest_release.outputs.tag }}
+          📅 <b>Data:</b> ${{ steps.latest_release.outputs.date }}
+          🔗 <a href=\"${{ steps.latest_release.outputs.url }}\">Scarica e leggi il changelog su GitHub</a>"
+
+          curl -s -X POST "https://api.telegram.org/bot${BOT_TOKEN}/editMessageText" \
+            -d "chat_id=${CHAT_ID}" \
+            -d "message_id=${MESSAGE_ID}" \
+            -d "parse_mode=HTML" \
+            --data-urlencode "text=${TEXT}"
