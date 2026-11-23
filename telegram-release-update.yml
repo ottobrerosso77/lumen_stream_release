@@ -17,8 +17,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          RELEASE_JSON=$(gh api repos/${{ github.repository }}/releases/latest)
+          RELEASE_JSON=$(gh api repos/${{ github.repository }}/releases/latest || true)
           TAG=$(echo "$RELEASE_JSON" | jq -r '.tag_name // empty')
+          NAME=$(echo "$RELEASE_JSON" | jq -r '.name // empty')
           URL=$(echo "$RELEASE_JSON" | jq -r '.html_url // empty')
           DATE=$(echo "$RELEASE_JSON" | jq -r '.published_at // empty' | cut -d'T' -f1)
 
@@ -27,6 +28,7 @@ jobs:
           fi
 
           echo "tag=${TAG:-N/D}" >> $GITHUB_OUTPUT
+          echo "name=${NAME:-N/D}" >> $GITHUB_OUTPUT
           echo "url=$URL" >> $GITHUB_OUTPUT
           echo "date=${DATE:-N/D}" >> $GITHUB_OUTPUT
 
@@ -36,20 +38,25 @@ jobs:
           CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           MESSAGE_ID: ${{ secrets.TELEGRAM_MESSAGE_ID }}
           REL_TAG: ${{ steps.latest_release.outputs.tag }}
+          REL_NAME: ${{ steps.latest_release.outputs.name }}
           REL_DATE: ${{ steps.latest_release.outputs.date }}
           REL_URL: ${{ steps.latest_release.outputs.url }}
         run: |
           TEXT=$(cat <<EOF
-          📦 <b>Ultima Release Disponibile</b>
+📦 <b>Ultima Release Disponibile</b>
 
-          🔖 <b>Versione:</b> ${REL_TAG}
-          📅 <b>Data:</b> ${REL_DATE}
-          🔗 ${REL_URL}
-          EOF
+🔖 <b>Versione:</b> ${REL_TAG}
+📝 <b>Titolo:</b> ${REL_NAME}
+📅 <b>Data:</b> ${REL_DATE}
+🔗 ${REL_URL}
+EOF
           )
 
-          curl -s -X POST "https://api.telegram.org/bot${BOT_TOKEN}/editMessageText" \
+          RESPONSE=$(curl -s -X POST "https://api.telegram.org/bot${BOT_TOKEN}/editMessageText" \
             -d "chat_id=${CHAT_ID}" \
             -d "message_id=${MESSAGE_ID}" \
             -d "parse_mode=HTML" \
-            --data-urlencode "text=${TEXT}"
+            -d "disable_web_page_preview=false" \
+            --data-urlencode "text=${TEXT}")
+
+          echo "Risposta Telegram: $RESPONSE"
