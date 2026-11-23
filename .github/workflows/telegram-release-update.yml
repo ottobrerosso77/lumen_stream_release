@@ -27,10 +27,10 @@ jobs:
             URL="https://github.com/${{ github.repository }}/releases/latest"
           fi
 
-          echo "tag=${TAG:-N/D}" >> $GITHUB_OUTPUT
-          echo "name=${NAME:-N/D}" >> $GITHUB_OUTPUT
-          echo "url=$URL" >> $GITHUB_OUTPUT
-          echo "date=${DATE:-N/D}" >> $GITHUB_OUTPUT
+          echo "tag=${TAG:-N/D}" >> "$GITHUB_OUTPUT"
+          echo "name=${NAME:-N/D}" >> "$GITHUB_OUTPUT"
+          echo "url=${URL}" >> "$GITHUB_OUTPUT"
+          echo "date=${DATE:-N/D}" >> "$GITHUB_OUTPUT"
 
       - name: Aggiorna messaggio su Telegram
         env:
@@ -42,15 +42,7 @@ jobs:
           REL_DATE: ${{ steps.latest_release.outputs.date }}
           REL_URL: ${{ steps.latest_release.outputs.url }}
         run: |
-          TEXT=$(cat <<EOF
-📦 <b>Ultima Release Disponibile</b>
-
-🔖 <b>Versione:</b> ${REL_TAG}
-📝 <b>Titolo:</b> ${REL_NAME}
-📅 <b>Data:</b> ${REL_DATE}
-🔗 ${REL_URL}
-EOF
-          )
+          TEXT=$(printf '📦 <b>Ultima Release Disponibile</b>\n\n🔖 <b>Versione:</b> %s\n📝 <b>Titolo:</b> %s\n📅 <b>Data:</b> %s\n🔗 %s' "$REL_TAG" "$REL_NAME" "$REL_DATE" "$REL_URL")
 
           RESPONSE=$(curl -s -X POST "https://api.telegram.org/bot${BOT_TOKEN}/editMessageText" \
             -d "chat_id=${CHAT_ID}" \
